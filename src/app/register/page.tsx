@@ -60,8 +60,8 @@ export default function RegisterPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Blood Group</label>
-                  <select name="bloodGroup" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <option value="" disabled selected>Select...</option>
+                  <select name="bloodGroup" required defaultValue="" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="" disabled>Select...</option>
                     {BLOOD_GROUPS.map(bg => (
                       <option key={bg} value={bg}>{bg}</option>
                     ))}
@@ -76,8 +76,8 @@ export default function RegisterPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Area / Location</label>
-                  <select name="area" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <option value="" disabled selected>Select Area...</option>
+                  <select name="area" required defaultValue="" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="" disabled>Select Area...</option>
                     {AREAS.map(a => (
                       <option key={a} value={a}>{a}</option>
                     ))}
