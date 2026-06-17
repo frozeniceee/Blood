@@ -7,10 +7,12 @@ create table public.donors (
   phone text not null,
   blood_group text not null,
   area text not null,
+  age integer,
   latitude double precision,
   longitude double precision,
   last_donation_date date,
   is_available boolean default true not null,
+  status text default 'pending' not null,
   emergency_contact text,
   notes text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
@@ -22,7 +24,7 @@ alter table public.donors enable row level security;
 
 -- Create policies
 
--- 1. Anyone can view all donors (we might want to restrict this later, but for MVP it's fine)
+-- 1. Anyone can view all donors
 create policy "Public profiles are viewable by everyone." on public.donors
   for select using (true);
 
@@ -34,5 +36,22 @@ create policy "Users can insert their own profile." on public.donors
 create policy "Users can update own profile." on public.donors
   for update using (auth.uid() = id);
 
--- Function to handle user creation and trigger profile insertion (Optional)
--- You can set up a trigger so when someone signs up via Auth, a blank profile is created
+-- Create a table for admins
+create table public.admins (
+  id uuid default gen_random_uuid() primary key,
+  username text not null unique,
+  password text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS for admins
+alter table public.admins enable row level security;
+
+-- Anyone can read/verify admins
+create policy "Admins are viewable by everyone." on public.admins
+  for select using (true);
+
+-- Create policy to insert admins (simple access for MVP)
+create policy "Admins can insert other admins." on public.admins
+  for insert with check (true);
+

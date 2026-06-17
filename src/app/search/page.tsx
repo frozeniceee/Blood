@@ -1,34 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { Search, MapPin, Droplet, Phone, Calendar } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, MapPin, Droplet, Phone, Calendar, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-
-// Mock data until Supabase is connected
-const MOCK_DONORS = [
-  { id: "1", name: "Ahmed Khan", bloodGroup: "O+", area: "Barishal Sadar", phone: "01711000000", lastDonation: "2025-12-01", available: true, age: 28, medicalHistory: "None" },
-  { id: "2", name: "Sara Islam", bloodGroup: "A+", area: "Agailjhara", phone: "01811000000", lastDonation: "2026-01-15", available: true, age: 24, medicalHistory: "Mild asthma" },
-  { id: "3", name: "Rahim Uddin", bloodGroup: "B+", area: "Babuganj", phone: "01911000000", lastDonation: "2026-03-10", available: false, age: 35, medicalHistory: "None" },
-  { id: "4", name: "Fatema Begum", bloodGroup: "O-", area: "Bakerganj", phone: "01511000000", lastDonation: "2025-10-20", available: true, age: 29, medicalHistory: "None" },
-  { id: "5", name: "Kamal Hossain", bloodGroup: "AB+", area: "Gournadi", phone: "01611000000", lastDonation: "2026-04-05", available: true, age: 41, medicalHistory: "High blood pressure managed with meds" },
-  { id: "6", name: "Jashim Uddin", bloodGroup: "A-", area: "Muladi", phone: "01722000000", lastDonation: "2026-02-14", available: true, age: 31, medicalHistory: "None" },
-  { id: "7", name: "Nusrat Jahan", bloodGroup: "B-", area: "Wazirpur", phone: "01822000000", lastDonation: "2025-11-20", available: false, age: 26, medicalHistory: "None" },
-  { id: "8", name: "Tariqul Islam", bloodGroup: "O+", area: "Barishal Sadar", phone: "01922000000", lastDonation: "2026-05-10", available: true, age: 22, medicalHistory: "None" },
-];
+import { getApprovedDonorsAction } from "@/app/actions/donors";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export default function SearchPage() {
+  const [donors, setDonors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [bloodGroup, setBloodGroup] = useState<string>("");
   const [area, setArea] = useState<string>("");
   
-  const filteredDonors = MOCK_DONORS.filter(donor => {
+  useEffect(() => {
+    async function fetchDonors() {
+      try {
+        const approvedDonors = await getApprovedDonorsAction();
+        setDonors(approvedDonors);
+      } catch (err) {
+        console.error("Error fetching donors:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDonors();
+  }, []);
+  
+  const filteredDonors = donors.filter(donor => {
     if (bloodGroup && donor.bloodGroup !== bloodGroup) return false;
     if (area && !donor.area.toLowerCase().includes(area.toLowerCase())) return false;
     return true;
   });
+
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-12">
@@ -103,11 +109,16 @@ export default function SearchPage() {
         <div className="lg:col-span-3 space-y-4">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">
-              {filteredDonors.length} {filteredDonors.length === 1 ? 'Donor' : 'Donors'} Found
+              {loading ? "Searching..." : `${filteredDonors.length} ${filteredDonors.length === 1 ? 'Donor' : 'Donors'} Found`}
             </h2>
           </div>
 
-          {filteredDonors.length > 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-slate-50 border border-slate-100 rounded-2xl">
+              <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+              <p className="text-muted-foreground font-medium">Searching for available blood donors...</p>
+            </div>
+          ) : filteredDonors.length > 0 ? (
             <div className="grid sm:grid-cols-2 gap-4">
               {filteredDonors.map(donor => (
                 <Card key={donor.id} className={`overflow-hidden transition-all hover:shadow-md ${!donor.available ? 'opacity-60' : ''}`}>

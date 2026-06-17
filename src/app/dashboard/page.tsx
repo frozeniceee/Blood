@@ -1,75 +1,165 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Activity, Settings, Calendar, Shield, Save } from "lucide-react";
+import { User, Activity, Settings, Calendar, Shield, Save, Loader2, Info, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getCurrentUserAction, updateProfileAction, updateAvailabilityAction } from "@/app/actions/auth";
 
 const AREAS = ["Barishal", "Patuakhali", "Jhalokati", "Rajapur", "Bhola", "Pirojpur", "Barguna", "Kuakata", "Agailjhara", "Babuganj", "Bakerganj", "Banaripara", "Gournadi", "Hizla", "Mehendiganj", "Muladi", "Wazirpur"];
 
 export default function DashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
   
   // Profile Forms State
-  const [name, setName] = useState("Loading...");
-  const [bloodGroup, setBloodGroup] = useState("A+");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [bloodGroup, setBloodGroup] = useState("");
   const [phone, setPhone] = useState("");
-  const [area, setArea] = useState("Barishal");
+  const [area, setArea] = useState("");
   const [medicalHistory, setMedicalHistory] = useState("");
+  const [status, setStatus] = useState<"pending" | "approved" | "declined">("pending");
+  const [registrationDate, setRegistrationDate] = useState("");
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
-    // Load mock user from local storage
-    const saved = localStorage.getItem("mock_user");
-    if (saved) {
-      const user = JSON.parse(saved);
-      setName(`${user.firstName || "New"} ${user.lastName || "User"}`);
-      if (user.bloodGroup) setBloodGroup(user.bloodGroup);
-      if (user.phone) setPhone(user.phone);
-      if (user.area) setArea(user.area);
-      if (user.medicalHistory) setMedicalHistory(user.medicalHistory);
-    } else {
-      setName("Ahmed Khan (Default)");
-      setPhone("01711000000");
+    async function loadProfile() {
+      try {
+        const res = await getCurrentUserAction();
+        if (res.success && res.profile) {
+          setName(res.profile.name);
+          setEmail(res.profile.email || "");
+          setBloodGroup(res.profile.bloodGroup);
+          setPhone(res.profile.phone);
+          setArea(res.profile.area);
+          setMedicalHistory(res.profile.medicalHistory);
+          setIsAvailable(res.profile.available);
+          setStatus(res.profile.status);
+          setRegistrationDate(res.profile.date || "");
+        } else {
+          // If profile fetch fails or not logged in, redirect to login
+          window.location.href = "/login";
+        }
+      } catch (err) {
+        console.error("Error loading dashboard profile:", err);
+        window.location.href = "/login";
+      } finally {
+        setLoading(false);
+      }
     }
+    loadProfile();
   }, []);
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    const saved = localStorage.getItem("mock_user");
-    if (saved) {
-      const user = JSON.parse(saved);
-      user.phone = phone;
-      user.area = area;
-      user.medicalHistory = medicalHistory;
-      localStorage.setItem("mock_user", JSON.stringify(user));
+  const handleToggleAvailability = async () => {
+    const nextVal = !isAvailable;
+    // Optimistic update
+    setIsAvailable(nextVal);
+    
+    try {
+      const res = await updateAvailabilityAction(nextVal);
+      if (!res.success) {
+        alert(res.error || "Failed to update availability");
+        setIsAvailable(isAvailable); // revert
+      }
+    } catch (e) {
+      alert("Error updating availability");
+      setIsAvailable(isAvailable); // revert
     }
-    alert("Profile information updated successfully!");
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdating(true);
+    
+    const formData = new FormData();
+    formData.append("phone", phone);
+    formData.append("area", area);
+    formData.append("medicalHistory", medicalHistory);
+
+    try {
+      const res = await updateProfileAction(formData);
+      if (res.success) {
+        alert("Profile information updated successfully!");
+      } else {
+        alert(res.error || "Failed to update profile info");
+      }
+    } catch (err) {
+      alert("An unexpected error occurred while updating profile");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentPassword && newPassword) {
-      alert("Password changed successfully!");
+      alert("Password changed successfully! (Local verification only)");
       setCurrentPassword("");
       setNewPassword("");
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+        <p className="text-muted-foreground font-medium">Loading your donor profile...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-8 flex items-center justify-between">
+      {/* Verification Status Banner */}
+      {status === "pending" && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+          <div>
+            <h4 className="font-semibold">Profile Pending Verification</h4>
+            <p className="text-amber-800 mt-0.5">
+              Your profile is currently waiting for admin approval. You can view and update your details, but your contact details won't be visible in public searches until verified.
+            </p>
+          </div>
+        </div>
+      )}
+      {status === "declined" && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900 shadow-sm">
+          <XCircle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
+          <div>
+            <h4 className="font-semibold">Profile Verification Declined</h4>
+            <p className="text-red-800 mt-0.5">
+              Administrators declined your donor registration. Please update your details or contact support for review.
+            </p>
+          </div>
+        </div>
+      )}
+      {status === "approved" && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-green-200 bg-green-50/50 p-4 text-sm text-green-900 shadow-sm">
+          <CheckCircle className="h-5 w-5 shrink-0 text-green-600 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-green-800">Verified Blood Donor</h4>
+            <p className="text-green-700 mt-0.5">
+              Your profile is approved and fully verified. It is now visible in the search database to patients seeking your blood group.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Manage your donor profile and availability.</p>
         </div>
-        <div className="flex items-center gap-3 bg-white border px-4 py-2 rounded-full shadow-sm">
-          <span className="text-sm font-medium">Status:</span>
+        <div className="flex items-center gap-3 bg-white border px-4 py-2 rounded-full shadow-sm w-fit">
+          <span className="text-sm font-medium">Search Status:</span>
           <button 
-            onClick={() => setIsAvailable(!isAvailable)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isAvailable ? 'bg-green-500' : 'bg-slate-300'}`}
+            onClick={handleToggleAvailability}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isAvailable ? 'bg-green-500' : 'bg-slate-300'}`}
           >
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAvailable ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
@@ -81,13 +171,13 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-[250px_1fr]">
         <div className="space-y-6">
-          <Card className="border-t-4 border-t-primary">
+          <Card className="border-t-4 border-t-primary shadow-sm">
             <CardContent className="pt-6 text-center">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mb-4">
                 <span className="text-2xl font-bold text-primary">{bloodGroup}</span>
               </div>
               <h2 className="text-xl font-bold">{name}</h2>
-              <p className="text-sm text-muted-foreground">Blood Donor</p>
+              <p className="text-xs text-muted-foreground mt-1">Registered: {registrationDate}</p>
             </CardContent>
           </Card>
           
@@ -131,10 +221,10 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Settings className="h-5 w-5" /> 
+                <Settings className="h-5 w-5 text-muted-foreground" /> 
                 Update Profile Information
               </CardTitle>
               <CardDescription>Keep your contact details and location up to date.</CardDescription>
@@ -144,7 +234,12 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Phone Number</label>
-                    <Input value={phone} onChange={e => setPhone(e.target.value)} required />
+                    <Input 
+                      value={phone} 
+                      onChange={e => setPhone(e.target.value)} 
+                      required 
+                      disabled={updating}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Area / Location</label>
@@ -153,6 +248,7 @@ export default function DashboardPage() {
                       value={area}
                       onChange={e => setArea(e.target.value)}
                       required
+                      disabled={updating}
                     >
                       {AREAS.map(a => (
                         <option key={a} value={a}>{a}</option>
@@ -166,19 +262,30 @@ export default function DashboardPage() {
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={medicalHistory}
                     onChange={e => setMedicalHistory(e.target.value)}
+                    disabled={updating}
                   />
                 </div>
-                <Button type="submit" className="w-full sm:w-auto">
-                  <Save className="w-4 h-4 mr-2" /> Save Changes
+                <Button type="submit" className="w-full sm:w-auto flex items-center gap-2" disabled={updating}>
+                  {updating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Shield className="h-5 w-5" /> 
+                <Shield className="h-5 w-5 text-muted-foreground" /> 
                 Security Settings
               </CardTitle>
               <CardDescription>Change your password to secure your account.</CardDescription>
@@ -218,3 +325,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
