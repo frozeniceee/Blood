@@ -11,12 +11,15 @@ import {
   adminApproveDonor,
   adminDeclineDonor,
   adminAddAdmin,
+  adminDeleteAdmin,
   getDonorProfile,
   getDonationLogs,
   addDonationLog,
   updateDonationLog,
   deleteDonationLog
 } from "@/lib/db";
+
+
 
 // User Login Action
 export async function loginAction(formData: FormData) {
@@ -101,7 +104,7 @@ export async function adminLoginAction(formData: FormData) {
 
   if (isValid) {
     const cookieStore = await cookies();
-    cookieStore.set("admin_session", "true", { path: "/", maxAge: 60 * 60 * 2 }); // 2 hours
+    cookieStore.set("admin_session", username, { path: "/", maxAge: 60 * 60 * 2 }); // 2 hours
     return { success: true };
   } else {
     return { success: false, error: "Invalid admin username or password" };
@@ -376,4 +379,31 @@ export async function deleteDonationLogAction(logId: string) {
   } catch (error: any) {
     return { success: false, error: error.message || "Failed to delete log" };
   }
+}
+
+// Admin Delete Admin Action (Superadmin only)
+export async function adminDeleteAdminAction(id: string) {
+  const cookieStore = await cookies();
+  const adminSession = cookieStore.get("admin_session")?.value;
+  
+  if (adminSession !== "superadmin") {
+    return { success: false, error: "Only the superadmin can delete other administrators." };
+  }
+
+  try {
+    const success = await adminDeleteAdmin(id);
+    if (success) {
+      return { success: true };
+    }
+    return { success: false, error: "Failed to delete administrator (or cannot delete superadmin)" };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to delete admin" };
+  }
+}
+
+// Check if current admin is superadmin
+export async function adminIsSuperAction() {
+  const cookieStore = await cookies();
+  const adminSession = cookieStore.get("admin_session")?.value;
+  return { success: true, isSuper: adminSession === "superadmin" };
 }

@@ -465,6 +465,35 @@ export async function adminAddAdmin(username: string, password: string): Promise
   return true;
 }
 
+export async function adminDeleteAdmin(id: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase
+        .from("admins")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Supabase delete admin error, falling back to JSON DB:", e);
+    }
+  }
+
+  const db = readJsonDb();
+  const index = (db.admins || []).findIndex((a: any) => a.id === id);
+  if (index !== -1) {
+    if (db.admins[index].username === "superadmin") {
+      return false; // Prevent deleting the main superadmin
+    }
+    db.admins.splice(index, 1);
+    writeJsonDb(db);
+    return true;
+  }
+  return false;
+}
+
 export async function adminLogin(username: string, password: string): Promise<boolean> {
   if (isSupabaseConfigured()) {
     try {

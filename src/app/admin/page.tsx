@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, ShieldAlert, UserCheck, Clock, Eye, Users, Plus, X, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, ShieldAlert, UserCheck, Clock, Eye, Users, Plus, X, Loader2, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   approveDonorAction, 
   declineDonorAction, 
-  addAdminAction 
+  addAdminAction,
+  adminDeleteAdminAction,
+  adminIsSuperAction
 } from "@/app/actions/auth";
 import { 
   adminGetRegistrationsAction, 
@@ -24,6 +26,7 @@ export default function AdminPage() {
   const [admins, setAdmins] = useState<any[]>([]);
   const [newAdminUsername, setNewAdminUsername] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [isSuper, setIsSuper] = useState(false);
 
   async function loadData() {
     try {
@@ -32,6 +35,11 @@ export default function AdminPage() {
       setRegistrations(regs);
       const admList = await adminGetAdminsAction();
       setAdmins(admList);
+      
+      const superRes = await adminIsSuperAction();
+      if (superRes.success) {
+        setIsSuper(superRes.isSuper);
+      }
     } catch (e) {
       console.error("Failed to load admin data", e);
     } finally {
@@ -91,6 +99,28 @@ export default function AdminPage() {
       } catch (err) {
         alert("Error creating admin");
       }
+    }
+  };
+
+  const handleDeleteAdmin = async (id: string, username: string) => {
+    if (username === "superadmin") {
+      alert("Cannot delete the master superadmin!");
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete admin "${username}"?`)) {
+      return;
+    }
+    try {
+      const res = await adminDeleteAdminAction(id);
+      if (res.success) {
+        alert(`Admin "${username}" deleted successfully!`);
+        const admList = await adminGetAdminsAction();
+        setAdmins(admList);
+      } else {
+        alert(res.error || "Failed to delete admin");
+      }
+    } catch (e) {
+      alert("Error deleting admin");
     }
   };
 
@@ -227,7 +257,21 @@ export default function AdminPage() {
                         <p className="font-medium text-slate-900">{admin.username}</p>
                         <p className="text-xs text-muted-foreground">Added: {admin.createdDate}</p>
                       </div>
-                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-semibold">Admin</span>
+                      <div className="flex items-center gap-2">
+                        {isSuper && admin.username !== "superadmin" && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-750 hover:bg-red-50"
+                            onClick={() => handleDeleteAdmin(admin.id, admin.username)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-semibold">
+                          {admin.username === "superadmin" ? "Superadmin" : "Admin"}
+                        </span>
+                      </div>
                     </li>
                   ))}
                 </ul>
