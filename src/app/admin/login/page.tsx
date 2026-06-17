@@ -1,8 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { ShieldAlert } from "lucide-react";
+import { Suspense, useState } from "react";
+import { ShieldAlert, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,15 +10,36 @@ import { adminLoginAction } from "@/app/actions/auth";
 
 function AdminLoginForm() {
   const searchParams = useSearchParams();
-  const hasError = searchParams.get("error");
+  const [error, setError] = useState<string | null>(searchParams.get("error") ? "Invalid username or password" : null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    const formData = new FormData(e.currentTarget);
+    try {
+      const res = await adminLoginAction(formData);
+      if (res.success) {
+        window.location.href = "/admin";
+      } else {
+        setError(res.error || "Invalid username or password");
+        setLoading(false);
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
+    }
+  };
 
   return (
-    <Card className="border-amber-200">
+    <Card className="border-amber-200 shadow-lg animate-in fade-in duration-300">
       <CardContent className="pt-6">
-        <form action={adminLoginAction} className="space-y-4">
-          {hasError && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm text-center font-medium">
-              Invalid username or password
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm text-center font-medium border border-red-100">
+              {error}
             </div>
           )}
           <div className="space-y-2">
@@ -30,6 +51,7 @@ function AdminLoginForm() {
               name="username"
               placeholder="admin1"
               required
+              disabled={loading}
             />
           </div>
           <div className="space-y-2">
@@ -42,10 +64,18 @@ function AdminLoginForm() {
               placeholder="••••••••"
               type="password"
               required
+              disabled={loading}
             />
           </div>
-          <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white" type="submit">
-            Access Dashboard
+          <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2" type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Accessing...
+              </>
+            ) : (
+              "Access Dashboard"
+            )}
           </Button>
         </form>
       </CardContent>
