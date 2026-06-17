@@ -11,7 +11,11 @@ import {
   adminApproveDonor,
   adminDeclineDonor,
   adminAddAdmin,
-  getDonorProfile
+  getDonorProfile,
+  getDonationLogs,
+  addDonationLog,
+  updateDonationLog,
+  deleteDonationLog
 } from "@/lib/db";
 
 // User Login Action
@@ -228,5 +232,148 @@ export async function addAdminAction(formData: FormData) {
     return { success: true };
   } else {
     return { success: false, error: "Admin already exists or failed to create" };
+  }
+}
+
+// Donation Logs Server Actions
+export async function getDonationLogsAction() {
+  const cookieStore = await cookies();
+  const sessionUser = cookieStore.get("mock_session")?.value;
+  
+  if (!sessionUser) {
+    return { success: false, error: "Not logged in" };
+  }
+
+  try {
+    const logs = await getDonationLogs(sessionUser);
+    return { success: true, logs };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to fetch logs" };
+  }
+}
+
+export async function addDonationLogAction(date: string, location: string, notes: string) {
+  const cookieStore = await cookies();
+  const sessionUser = cookieStore.get("mock_session")?.value;
+  
+  if (!sessionUser) {
+    return { success: false, error: "Not logged in" };
+  }
+
+  if (!date) {
+    return { success: false, error: "Date is required" };
+  }
+
+  try {
+    const success = await addDonationLog(sessionUser, date, location, notes);
+    if (success) {
+      // Sync last donation date and increment total donations on profile
+      const profile = await getDonorProfile(sessionUser);
+      if (profile) {
+        let currentTotal = profile.totalDonations || 0;
+        let lastDate = profile.lastDonation || "Never";
+
+        // Increment total donations
+        const newTotal = currentTotal + 1;
+        
+        // Update last donation date if this log's date is newer or profile has never donated
+        if (lastDate === "Never" || new Date(date) > new Date(lastDate)) {
+          lastDate = date;
+        }
+
+        await updateDonorProfile(
+          sessionUser,
+          profile.phone,
+          profile.area,
+          profile.medicalHistory,
+          newTotal,
+          lastDate
+        );
+      }
+      return { success: true };
+    }
+    return { success: false, error: "Failed to add donation log" };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to add log" };
+  }
+}
+
+export async function updateDonationLogAction(logId: string, date: string, location: string, notes: string) {
+  const cookieStore = await cookies();
+  const sessionUser = cookieStore.get("mock_session")?.value;
+  
+  if (!sessionUser) {
+    return { success: false, error: "Not logged in" };
+  }
+
+  if (!date) {
+    return { success: false, error: "Date is required" };
+  }
+
+  try {
+    const success = await updateDonationLog(logId, date, location, notes);
+    if (success) {
+      // Recalculate last donation date from all logs
+      const profile = await getDonorProfile(sessionUser);
+      if (profile) {
+        const logs = await getDonationLogs(sessionUser);
+        let lastDate = "Never";
+        if (logs.length > 0) {
+          // Since getDonationLogs sorts descending by date, the first one is the most recent
+          lastDate = logs[0].donationDate;
+        }
+        await updateDonorProfile(
+          sessionUser,
+          profile.phone,
+          profile.area,
+          profile.medicalHistory,
+          profile.totalDonations,
+          lastDate
+        );
+      }
+      return { success: true };
+    }
+    return { success: false, error: "Failed to update donation log" };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to update log" };
+  }
+}
+
+export async function deleteDonationLogAction(logId: string) {
+  const cookieStore = await cookies();
+  const sessionUser = cookieStore.get("mock_session")?.value;
+  
+  if (!sessionUser) {
+    return { success: false, error: "Not logged in" };
+  }
+
+  try {
+    const success = await deleteDonationLog(logId);
+    if (success) {
+      // Sync total donations (decrement) and recalculate last donation date
+      const profile = await getDonorProfile(sessionUser);
+      if (profile) {
+        const logs = await getDonationLogs(sessionUser);
+        let lastDate = "Never";
+        if (logs.length > 0) {
+          lastDate = logs[0].donationDate;
+        }
+        const currentTotal = profile.totalDonations || 0;
+        const newTotal = Math.max(0, currentTotal - 1);
+
+        await updateDonorProfile(
+          sessionUser,
+          profile.phone,
+          profile.area,
+          profile.medicalHistory,
+          newTotal,
+          lastDate
+        );
+      }
+      return { success: true };
+    }
+    return { success: false, error: "Failed to delete donation log" };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to delete log" };
   }
 }

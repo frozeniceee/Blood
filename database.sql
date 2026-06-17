@@ -56,4 +56,31 @@ create policy "Admins are viewable by everyone." on public.admins
 create policy "Admins can insert other admins." on public.admins
   for insert with check (true);
 
+-- Create a table for donation history logs
+create table public.donation_logs (
+  id uuid default gen_random_uuid() primary key,
+  donor_id uuid references public.donors(id) on delete cascade not null,
+  donation_date date not null,
+  location text,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS for donation_logs
+alter table public.donation_logs enable row level security;
+
+-- Policies for donation_logs
+create policy "Donation logs are viewable by everyone." on public.donation_logs
+  for select using (true);
+
+create policy "Anyone can insert donation logs." on public.donation_logs
+  for insert with check (true);
+
+create policy "Anyone can update donation logs." on public.donation_logs
+  for update using (true);
+
+create policy "Anyone can delete donation logs." on public.donation_logs
+  for delete using (true);
+
+
 

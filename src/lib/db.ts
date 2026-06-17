@@ -488,3 +488,136 @@ export async function adminLogin(username: string, password: string): Promise<bo
     (a: any) => a.username.toLowerCase() === username.toLowerCase() && a.password === password
   );
 }
+
+export interface DonationLog {
+  id: string;
+  donorId: string;
+  donationDate: string;
+  location: string;
+  notes: string;
+}
+
+export async function getDonationLogs(donorId: string): Promise<DonationLog[]> {
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { data, error } = await supabase
+        .from("donation_logs")
+        .select("*")
+        .eq("donor_id", donorId)
+        .order("donation_date", { ascending: false });
+      
+      if (error) throw error;
+      
+      return (data || []).map((l: any) => ({
+        id: l.id,
+        donorId: l.donor_id,
+        donationDate: l.donation_date,
+        location: l.location || "",
+        notes: l.notes || ""
+      }));
+    } catch (e) {
+      console.error("Supabase getDonationLogs error, falling back to JSON DB:", e);
+    }
+  }
+
+  const db = readJsonDb();
+  const logs = db.donation_logs || [];
+  return logs
+    .filter((l: any) => l.donorId === donorId)
+    .sort((a: any, b: any) => new Date(b.donationDate).getTime() - new Date(a.donationDate).getTime());
+}
+
+export async function addDonationLog(donorId: string, date: string, location: string, notes: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase
+        .from("donation_logs")
+        .insert({
+          donor_id: donorId,
+          donation_date: date,
+          location,
+          notes
+        });
+      
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Supabase addDonationLog error, falling back to JSON DB:", e);
+    }
+  }
+
+  const db = readJsonDb();
+  if (!db.donation_logs) db.donation_logs = [];
+  
+  db.donation_logs.push({
+    id: Date.now().toString(),
+    donorId,
+    donationDate: date,
+    location,
+    notes
+  });
+  
+  writeJsonDb(db);
+  return true;
+}
+
+export async function updateDonationLog(logId: string, date: string, location: string, notes: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase
+        .from("donation_logs")
+        .update({
+          donation_date: date,
+          location,
+          notes
+        })
+        .eq("id", logId);
+      
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Supabase updateDonationLog error, falling back to JSON DB:", e);
+    }
+  }
+
+  const db = readJsonDb();
+  const index = (db.donation_logs || []).findIndex((l: any) => l.id === logId);
+  if (index !== -1) {
+    db.donation_logs[index].donationDate = date;
+    db.donation_logs[index].location = location;
+    db.donation_logs[index].notes = notes;
+    writeJsonDb(db);
+    return true;
+  }
+  return false;
+}
+
+export async function deleteDonationLog(logId: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { error } = await supabase
+        .from("donation_logs")
+        .delete()
+        .eq("id", logId);
+      
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Supabase deleteDonationLog error, falling back to JSON DB:", e);
+    }
+  }
+
+  const db = readJsonDb();
+  const index = (db.donation_logs || []).findIndex((l: any) => l.id === logId);
+  if (index !== -1) {
+    db.donation_logs.splice(index, 1);
+    writeJsonDb(db);
+    return true;
+  }
+  return false;
+}
+

@@ -30,5 +30,15 @@
   "admins": [
     { "id": "1", "username": "admin1", "password": "admin123", "createdDate": "2026-01-10" },
     { "id": "2", "username": "admin2", "password": "admin123", "createdDate": "2026-02-15" }
+  ],
+  "donation_logs": [
+    { "id": "log-1", "donorId": "1", "donationDate": "2025-12-01", "location": "Barishal Sadar Hospital", "notes": "No complications. Donated 450ml." },
+    { "id": "log-2", "donorId": "2", "donationDate": "2026-01-15", "location": "Agailjhara General Clinic", "notes": "Regular donation. Felt great." },
+    { "id": "log-3", "donorId": "3", "donationDate": "2026-03-10", "location": "Babuganj Health Complex", "notes": "Quick donation. Platelets count high." },
+    { "id": "log-4", "donorId": "4", "donationDate": "2025-10-20", "location": "Bakerganj Hospital", "notes": "Donated whole blood." },
+    { "id": "log-5", "donorId": "5", "donationDate": "2026-04-05", "location": "Gournadi Red Crescent", "notes": "Donation went well." },
+    { "id": "log-6", "donorId": "6", "donationDate": "2026-02-14", "location": "Muladi Medical Center", "notes": "Felt slightly dizzy but recovered quickly." },
+    { "id": "log-7", "donorId": "7", "donationDate": "2025-11-20", "location": "Wazirpur Charity Hospital", "notes": "Regular checkup passed." },
+    { "id": "log-8", "donorId": "8", "donationDate": "2026-05-10", "location": "Barishal Sadar Hospital", "notes": "Successful donation." }
   ]
 }
