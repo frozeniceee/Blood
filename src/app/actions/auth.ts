@@ -140,12 +140,24 @@ export async function updateProfileAction(formData: FormData) {
   const phone = formData.get("phone") as string;
   const area = formData.get("area") as string;
   const medicalHistory = formData.get("medicalHistory") as string;
+  const totalDonationsStr = formData.get("totalDonations") as string;
+  const lastDonationDate = formData.get("lastDonationDate") as string;
 
   if (!phone || !area) {
     return { success: false, error: "Phone number and area are required" };
   }
 
-  const success = await updateDonorProfile(sessionUser, phone, area, medicalHistory || "");
+  const totalDonations = parseInt(totalDonationsStr, 10);
+  const totalDonationsParsed = isNaN(totalDonations) ? 0 : totalDonations;
+
+  const success = await updateDonorProfile(
+    sessionUser, 
+    phone, 
+    area, 
+    medicalHistory || "",
+    totalDonationsParsed,
+    lastDonationDate || "Never"
+  );
   
   if (success) {
     return { success: true };

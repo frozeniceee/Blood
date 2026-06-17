@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, MapPin, Droplet, Phone, Calendar, Loader2 } from "lucide-react";
+import { Search, MapPin, Droplet, Phone, Calendar, Loader2, Activity } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -140,6 +140,10 @@ export default function SearchPage() {
                       <div className="flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
                         <span>Last Donated: {donor.lastDonation}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Activity className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <span>Total Donations: {donor.totalDonations || 0} {donor.totalDonations === 1 ? 'time' : 'times'}</span>
                       </div>
                       <div className="flex items-center">
                         <div className={`h-2 w-2 rounded-full mr-2 ${donor.available ? 'bg-green-500' : 'bg-red-500'}`} />

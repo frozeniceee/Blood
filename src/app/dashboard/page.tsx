@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Activity, Settings, Calendar, Shield, Save, Loader2, Info, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { User, Activity, Settings, Calendar, Shield, Save, Loader2, Info, AlertTriangle, CheckCircle, XCircle, Clock, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,10 @@ export default function DashboardPage() {
   const [medicalHistory, setMedicalHistory] = useState("");
   const [status, setStatus] = useState<"pending" | "approved" | "declined">("pending");
   const [registrationDate, setRegistrationDate] = useState("");
+  
+  // Donation Stats
+  const [totalDonations, setTotalDonations] = useState(0);
+  const [lastDonationDate, setLastDonationDate] = useState("Never");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -41,6 +45,8 @@ export default function DashboardPage() {
           setIsAvailable(res.profile.available);
           setStatus(res.profile.status);
           setRegistrationDate(res.profile.date || "");
+          setTotalDonations(res.profile.totalDonations || 0);
+          setLastDonationDate(res.profile.lastDonation || "Never");
         } else {
           // If profile fetch fails or not logged in, redirect to login
           window.location.href = "/login";
@@ -80,11 +86,14 @@ export default function DashboardPage() {
     formData.append("phone", phone);
     formData.append("area", area);
     formData.append("medicalHistory", medicalHistory);
+    formData.append("totalDonations", totalDonations.toString());
+    formData.append("lastDonationDate", lastDonationDate);
 
     try {
       const res = await updateProfileAction(formData);
       if (res.success) {
         alert("Profile information updated successfully!");
+        // Refresh local calculation
       } else {
         alert(res.error || "Failed to update profile info");
       }
@@ -104,6 +113,30 @@ export default function DashboardPage() {
     }
   };
 
+  // Cooldown calculation
+  let daysRemaining = 0;
+  let isCooldownActive = false;
+  let nextEligibleDate = "";
+  
+  if (lastDonationDate && lastDonationDate !== "Never") {
+    const lastDate = new Date(lastDonationDate);
+    if (!isNaN(lastDate.getTime())) {
+      const eligibleDate = new Date(lastDate.getTime());
+      eligibleDate.setDate(eligibleDate.getDate() + 90);
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      eligibleDate.setHours(0, 0, 0, 0);
+      
+      if (today < eligibleDate) {
+        isCooldownActive = true;
+        const diffTime = eligibleDate.getTime() - today.getTime();
+        daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        nextEligibleDate = eligibleDate.toISOString().split("T")[0];
+      }
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -115,6 +148,20 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
+      {/* Cooldown Alert Banner */}
+      {isCooldownActive && status === "approved" && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 shadow-sm animate-in fade-in">
+          <Clock className="h-5 w-5 shrink-0 text-blue-600 mt-0.5" />
+          <div>
+            <h4 className="font-semibold">Donation Cooldown Active ({daysRemaining} days remaining)</h4>
+            <p className="text-blue-800 mt-0.5">
+              Since your last donation was on **{lastDonationDate}**, you are in a 90-day cooldown period. You will be eligible to donate again on **{nextEligibleDate}**. 
+              <span className="font-semibold block mt-1">Note: Your contact details are temporarily hidden from search results to let your body recover.</span>
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Verification Status Banner */}
       {status === "pending" && (
         <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm animate-in fade-in slide-in-from-top-2">
@@ -138,11 +185,11 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-      {status === "approved" && (
+      {status === "approved" && !isCooldownActive && (
         <div className="mb-6 flex items-start gap-3 rounded-lg border border-green-200 bg-green-50/50 p-4 text-sm text-green-900 shadow-sm">
           <CheckCircle className="h-5 w-5 shrink-0 text-green-600 mt-0.5" />
           <div>
-            <h4 className="font-semibold text-green-800">Verified Blood Donor</h4>
+            <h4 className="font-semibold text-green-800">Verified Blood Donor - Eligible</h4>
             <p className="text-green-700 mt-0.5">
               Your profile is approved and fully verified. It is now visible in the search database to patients seeking your blood group.
             </p>
@@ -159,12 +206,13 @@ export default function DashboardPage() {
           <span className="text-sm font-medium">Search Status:</span>
           <button 
             onClick={handleToggleAvailability}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isAvailable ? 'bg-green-500' : 'bg-slate-300'}`}
+            disabled={isCooldownActive}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isCooldownActive ? 'bg-slate-200 cursor-not-allowed' : isAvailable ? 'bg-green-500' : 'bg-slate-300'}`}
           >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAvailable ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAvailable && !isCooldownActive ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
-          <span className={`text-sm font-semibold ${isAvailable ? 'text-green-600' : 'text-slate-500'}`}>
-            {isAvailable ? 'Available' : 'Unavailable'}
+          <span className={`text-sm font-semibold ${isCooldownActive ? 'text-blue-600' : isAvailable ? 'text-green-600' : 'text-slate-500'}`}>
+            {isCooldownActive ? 'On Cooldown' : isAvailable ? 'Available' : 'Unavailable'}
           </span>
         </div>
       </div>
@@ -201,7 +249,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Last Donation</p>
-                    <p className="text-2xl font-bold">Never</p>
+                    <p className="text-2xl font-bold text-slate-800">{lastDonationDate}</p>
                   </div>
                 </div>
               </CardContent>
@@ -214,7 +262,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Total Donations</p>
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold text-slate-800">{totalDonations} {totalDonations === 1 ? 'Time' : 'Times'}</p>
                   </div>
                 </div>
               </CardContent>
@@ -225,9 +273,9 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Settings className="h-5 w-5 text-muted-foreground" /> 
-                Update Profile Information
+                Update Profile & Donation Log
               </CardTitle>
-              <CardDescription>Keep your contact details and location up to date.</CardDescription>
+              <CardDescription>Keep your contact details, location, and donation history up to date.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -256,6 +304,33 @@ export default function DashboardPage() {
                     </select>
                   </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Total Times Donated</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      value={totalDonations}
+                      onChange={e => setTotalDonations(parseInt(e.target.value, 10) || 0)}
+                      required
+                      disabled={updating}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-1">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      Last Donation Date
+                    </label>
+                    <Input 
+                      type="date"
+                      value={lastDonationDate === "Never" ? "" : lastDonationDate}
+                      onChange={e => setLastDonationDate(e.target.value || "Never")}
+                      disabled={updating}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Medical History Notes</label>
                   <textarea 

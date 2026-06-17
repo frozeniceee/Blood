@@ -55,6 +55,7 @@ export interface DonorProfile {
   status: "pending" | "approved" | "declined";
   date: string;
   lastDonation?: string;
+  totalDonations: number;
 }
 
 // --------------------------------------------------------------------
@@ -83,7 +84,8 @@ export async function getDonors(): Promise<DonorProfile[]> {
         available: d.is_available,
         status: d.status as any,
         date: d.created_at ? d.created_at.split("T")[0] : "",
-        lastDonation: d.last_donation_date || "Never"
+        lastDonation: d.last_donation_date || "Never",
+        totalDonations: d.total_donations || 0
       }));
     } catch (e) {
       console.error("Supabase getDonors error, falling back to JSON DB:", e);
@@ -121,7 +123,8 @@ export async function getDonorProfile(id: string): Promise<DonorProfile | null> 
         available: data.is_available,
         status: data.status as any,
         date: data.created_at ? data.created_at.split("T")[0] : "",
-        lastDonation: data.last_donation_date || "Never"
+        lastDonation: data.last_donation_date || "Never",
+        totalDonations: data.total_donations || 0
       };
     } catch (e) {
       console.error("Supabase getDonorProfile error, falling back to JSON DB:", e);
@@ -132,7 +135,7 @@ export async function getDonorProfile(id: string): Promise<DonorProfile | null> 
   return db.donors.find((d: any) => d.id === id) || null;
 }
 
-export async function registerDonor(email: string, password: string, donorData: Omit<DonorProfile, "id" | "status" | "date" | "available" | "lastDonation">): Promise<{ success: boolean; error?: string; userId?: string }> {
+export async function registerDonor(email: string, password: string, donorData: Omit<DonorProfile, "id" | "status" | "date" | "available" | "lastDonation" | "totalDonations">): Promise<{ success: boolean; error?: string; userId?: string }> {
   if (isSupabaseConfigured()) {
     try {
       const supabase = await createSupabaseServerClient();
@@ -162,7 +165,9 @@ export async function registerDonor(email: string, password: string, donorData: 
           age: donorData.age,
           notes: donorData.medicalHistory,
           status: "pending",
-          is_available: true
+          is_available: true,
+          total_donations: 0,
+          last_donation_date: null
         });
 
       if (profileError) {
@@ -200,7 +205,8 @@ export async function registerDonor(email: string, password: string, donorData: 
     available: true,
     status: "pending",
     date: new Date().toISOString().split("T")[0],
-    lastDonation: "Never"
+    lastDonation: "Never",
+    totalDonations: 0
   };
   
   db.donors.push(newDonor);
@@ -229,9 +235,6 @@ export async function loginUser(email: string, password: string): Promise<{ succ
       };
     } catch (e: any) {
       console.error("Supabase login failed, falling back to JSON DB:", e);
-      // If environment is set up but login credentials simply failed, we should probably fail directly,
-      // but to allow mock testing on existing local DB accounts, let's fall through or fail.
-      // If we fall through, users can still log in to their mock users in db.json!
     }
   }
 
@@ -253,7 +256,7 @@ export async function loginUser(email: string, password: string): Promise<{ succ
   };
 }
 
-export async function updateDonorProfile(id: string, phone: string, area: string, medicalHistory: string): Promise<boolean> {
+export async function updateDonorProfile(id: string, phone: string, area: string, medicalHistory: string, totalDonations: number, lastDonationDate: string): Promise<boolean> {
   if (isSupabaseConfigured()) {
     try {
       const supabase = await createSupabaseServerClient();
@@ -263,6 +266,8 @@ export async function updateDonorProfile(id: string, phone: string, area: string
           phone,
           area,
           notes: medicalHistory,
+          total_donations: totalDonations,
+          last_donation_date: lastDonationDate === "Never" || !lastDonationDate ? null : lastDonationDate,
           updated_at: new Date().toISOString()
         })
         .eq("id", id);
@@ -280,6 +285,8 @@ export async function updateDonorProfile(id: string, phone: string, area: string
     db.donors[index].phone = phone;
     db.donors[index].area = area;
     db.donors[index].medicalHistory = medicalHistory;
+    db.donors[index].totalDonations = totalDonations;
+    db.donors[index].lastDonation = lastDonationDate || "Never";
     writeJsonDb(db);
     return true;
   }
@@ -337,7 +344,8 @@ export async function adminGetRegistrations(): Promise<DonorProfile[]> {
         available: d.is_available,
         status: d.status as any,
         date: d.created_at ? d.created_at.split("T")[0] : "",
-        lastDonation: d.last_donation_date || "Never"
+        lastDonation: d.last_donation_date || "Never",
+        totalDonations: d.total_donations || 0
       }));
     } catch (e) {
       console.error("Supabase admin get error, falling back to JSON DB:", e);

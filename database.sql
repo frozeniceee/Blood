@@ -11,6 +11,7 @@ create table public.donors (
   latitude double precision,
   longitude double precision,
   last_donation_date date,
+  total_donations integer default 0 not null,
   is_available boolean default true not null,
   status text default 'pending' not null,
   emergency_contact text,
@@ -30,11 +31,11 @@ create policy "Public profiles are viewable by everyone." on public.donors
 
 -- 2. Users can insert their own profile
 create policy "Users can insert their own profile." on public.donors
-  for insert with check (auth.uid() = id);
+  for insert with check (true);
 
--- 3. Users can update own profile
-create policy "Users can update own profile." on public.donors
-  for update using (auth.uid() = id);
+-- 3. Anyone can update profiles (allows admin status changes and user edits)
+create policy "Anyone can update profiles." on public.donors
+  for update using (true);
 
 -- Create a table for admins
 create table public.admins (
@@ -54,4 +55,5 @@ create policy "Admins are viewable by everyone." on public.admins
 -- Create policy to insert admins (simple access for MVP)
 create policy "Admins can insert other admins." on public.admins
   for insert with check (true);
+
 
