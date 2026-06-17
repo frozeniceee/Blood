@@ -12,8 +12,17 @@ export function Footer() {
           </span>
         </div>
         
-        <p className="text-center text-sm leading-loose text-muted-foreground md:text-left flex items-center gap-1">
-          Built with <Heart className="h-4 w-4 text-primary fill-primary" /> for the community.
+        <p className="text-center text-sm leading-loose text-muted-foreground md:text-left flex items-center gap-1 flex-wrap justify-center md:justify-start">
+          Developed by{" "}
+          <a 
+            href="https://www.facebook.com/S4MC71/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="font-semibold text-foreground hover:text-primary transition-colors underline underline-offset-4 decoration-primary/30"
+          >
+            Mubin
+          </a>{" "}
+          | Built with <Heart className="h-4 w-4 text-primary fill-primary inline-block" /> for the community.
         </p>
         
         <div className="flex gap-4">
